@@ -1,0 +1,28 @@
+# Build outputs and temporary files
+.pio/
+local-daemon/node_modules/
+node_modules/
+local-daemon/temp-uploads/
+local-daemon/public/pets/*.bin
+*.log
+hook_inputs.log
+
+# Secret credentials and configuration
+.env
+local-daemon/.env
+local-daemon/config.json
+/tmp/code_dog_config.json
+
+# Python Virtual Environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Local backup / scratch / temp directories
+backup/
+scratch/
+petdex-temp/
+.claude/
+.venv/
+demo/

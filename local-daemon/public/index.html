@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>code-dog - Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="glass-bg-decor 1"></div>
+  <div class="glass-bg-decor 2"></div>
+
+  <div class="app-container">
+    <!-- FREE FLY MASTER BANNER -->
+    <div class="free-fly-banner" id="free-fly-banner">
+      <span>✈️ 自由飞翔模式已开启 (所有 AI 命令行审批将自动放行通过，物理端暂不拦截)</span>
+      <button class="btn-sm btn-approve" onclick="toggleFreeFly(false)">立即关闭</button>
+    </div>
+
+    <header class="app-header">
+      <div class="logo-area">
+        <img src="/code_dog_logo.png" alt="code-dog Logo" style="width: 48px; height: 48px; border-radius: 8px; box-shadow: 0 0 12px rgba(99, 102, 241, 0.4); object-fit: cover;">
+        <div class="title-group">
+          <h1 style="letter-spacing: 0.5px; font-weight: 800; background: linear-gradient(135deg, #c084fc 0%, #6366f1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">code-dog / 代码看门狗</h1>
+          <p class="subtitle">AI 命令安全拦截与桌面电子宠物网关</p>
+        </div>
+      </div>
+      <div class="status-panel">
+        <div class="status-item">
+          <span class="status-label">一键放行 (Bypass):</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="freefly-toggle" onchange="toggleFreeFly(this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Client ID:</span>
+          <div style="display: flex; align-items: center; gap: 0.25rem;">
+            <input type="text" id="client-id-input" style="width: 120px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: #fff; border-radius: 4px; padding: 0.2rem 0.4rem; font-size: 0.8rem; font-family: monospace;" value="Loading..." onchange="saveClientId(this.value)">
+            <button onclick="copyClientId()" class="btn-sm" style="padding: 0.2rem 0.4rem; font-size: 0.75rem; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid var(--border-color); cursor: pointer;" title="复制 Client ID">📋</button>
+          </div>
+        </div>
+        <div class="status-item">
+          <span class="status-label">MQTT:</span>
+          <span class="status-indicator-dot" id="status-dot"></span>
+          <span id="status-text">OFFLINE</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">硬件状态:</span>
+          <span class="status-indicator-dot" id="hardware-dot"></span>
+          <span id="hardware-text" class="status-offline">OFFLINE</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">日志上限:</span>
+          <input type="number" id="retention-limit-input" style="width: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: #fff; border-radius: 4px; padding: 0.2rem; text-align: center;" value="1000" min="10" onchange="saveRetentionLimit(this.value)">
+        </div>
+        <div class="status-item">
+          <button onclick="openShutdownModal()" class="btn-sm btn-shutdown">安全退出</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" id="btn-tab-approvals" onclick="switchTab('tab-approvals')">任务审批与日志</button>
+      <button class="tab-btn" id="btn-tab-hooks" onclick="switchTab('tab-hooks')">Hook 控制面板</button>
+      <button class="tab-btn" id="btn-tab-pets" onclick="switchTab('tab-pets')">开源宠物店</button>
+    </div>
+
+    <!-- TAB 1: APPROVALS & HISTORY -->
+    <div id="tab-approvals" class="tab-content active">
+      <div class="dashboard-grid">
+        <!-- LEFT COLUMN: PENDING APPROVALS -->
+        <section class="panel pending-panel">
+          <div class="panel-header">
+            <h2>当前等待审批任务</h2>
+            <span class="counter" id="pending-count">0</span>
+          </div>
+          <div class="requests-list" id="pending-list">
+            <div class="empty-state">
+              <span class="empty-icon">🛡️</span>
+              <h3>暂无挂起的安全审核请求</h3>
+              <p>Claude Code 或 Antigravity 运行高危操作时，将在此处弹窗和物理设备同步拦截提示。</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT COLUMN: HISTORY LOG -->
+        <section class="panel history-panel">
+          <div class="panel-header">
+            <h2>执行审计日志</h2>
+          </div>
+          <div class="history-list" id="history-list">
+            <div class="empty-state">
+              <p>暂无历史操作记录。</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- TAB 2: HOOK MANAGER -->
+    <div id="tab-hooks" class="tab-content">
+      <div class="hooks-layout">
+        <!-- Platforms Hook Cards -->
+        <section class="panel">
+          <div class="panel-header">
+            <h2>各个软件平台的拦截配置</h2>
+          </div>
+          <div class="hooks-grid" id="hooks-list">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- Project Paths Overrides -->
+        <section class="panel">
+          <div class="panel-header">
+            <h2>项目目录特异配置 (CWD overrides)</h2>
+          </div>
+          <div class="projects-overrides">
+            <div class="project-form">
+              <input type="text" id="project-path-input" class="input-txt" placeholder="输入绝对路径，如 /home/zyx/project-a">
+              <select id="project-mode-input" class="mode-select" style="max-width: 180px;">
+                <option value="strict">强安全拦截 (Strict)</option>
+                <option value="monitor">静默审计 (Monitor)</option>
+                <option value="companion">伴侣随动 (Companion)</option>
+                <option value="disabled">彻底关闭 Hook (Disabled)</option>
+              </select>
+              <button onclick="addProjectOverride()" class="btn btn-approve" style="flex: initial;">+ 添加配置</button>
+            </div>
+            <div id="projects-list" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- TAB 3: PET SHOP -->
+    <div id="tab-pets" class="tab-content">
+      <div class="pets-layout">
+        <!-- Active Pet Live Preview & Quick Actions -->
+        <section class="active-pet-panel">
+          <div class="panel-header" style="width: 100%; border-bottom: none; margin-bottom: 0;">
+            <h2>当前活跃宠物</h2>
+          </div>
+          <div class="mascot-frame-holder">
+            <div class="pet-live-preview" id="mascot-preview"></div>
+          </div>
+          <div class="active-pet-details">
+            <h3 id="active-pet-name">加载中...</h3>
+            <p id="active-pet-desc">正在拉取宠物配置信息...</p>
+          </div>
+          <div class="pet-action-selectors">
+            <button class="btn-state-preview active" onclick="changePreviewState('idle', 0)">空闲 (Idle)</button>
+            <button class="btn-state-preview" onclick="changePreviewState('run', 1)">奔跑 (Run)</button>
+            <button class="btn-state-preview" onclick="changePreviewState('review', 4)">审批 (Review)</button>
+            <button class="btn-state-preview" onclick="changePreviewState('failed', 5)">失败 (Failed)</button>
+            <button class="btn-state-preview" onclick="changePreviewState('jump', 6)">跳跃 (Jump)</button>
+          </div>
+        </section>
+
+        <!-- Interactive lists & import -->
+        <div class="store-pets-list">
+          
+          <!-- MY INSTALLED PETS SECTION -->
+          <section class="installed-pets-panel">
+            <h2 style="font-size: 1.15rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; margin-bottom: 1rem; color: #fff;">我的宠物 (本地已安装)</h2>
+            <div class="installed-pets-grid" id="installed-pets-list">
+              <!-- Dynamically populated -->
+            </div>
+          </section>
+
+          <!-- COMMUNITY PET STORE SECTION -->
+          <section class="panel">
+            <div class="panel-header" style="display: flex; flex-direction: column; align-items: stretch; gap: 1rem; border-bottom: none; margin-bottom: 0.5rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <h2>社区开源宠物市场</h2>
+                  <span id="cdn-status-badge" style="display: none; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 500; align-items: center; gap: 4px;">⚡ CDN 加速已开启</span>
+                </div>
+                <input type="text" id="store-search-input" class="input-txt" style="max-width: 250px; padding: 0.4rem 0.8rem; font-size: 0.85rem;" placeholder="🔍 输入名称或描述搜索..." oninput="handleSearch(this.value)">
+              </div>
+              
+              <!-- Manual Import Controls -->
+              <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
+                <div class="import-tabs-header">
+                  <button class="import-tab-btn active" id="btn-import-url" onclick="switchImportTab('url')">🌐 单链接导入</button>
+                  <button class="import-tab-btn" id="btn-import-local" onclick="switchImportTab('local')">📁 拖拽上传导入</button>
+                </div>
+                
+                <!-- URL import tab content -->
+                <div id="pane-import-url" class="import-tab-pane active">
+                  <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                    支持直接输入社区宠物页面的链接（自动解析）：
+                    <a href="https://petdex.crafter.run" target="_blank" style="color: var(--accent-primary); text-decoration: underline; margin-left: 0.5rem; font-weight: bold;">Petdex 社区</a>
+                    <span style="color: rgba(255,255,255,0.1); margin: 0 0.4rem;">|</span>
+                    <a href="https://codex-pets.net" target="_blank" style="color: var(--accent-primary); text-decoration: underline; font-weight: bold;">Codex-pets 社区</a>
+                  </div>
+                  <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="custom-pet-url-only" class="input-txt" placeholder="输入社区宠物页面链接 (例如: https://codex-pets.net/pets/#/lumichan)">
+                    <button onclick="importPetByJsonUrl()" class="btn btn-approve" style="flex: initial; white-space: nowrap; font-size: 0.85rem;">一键导入</button>
+                  </div>
+                </div>
+                
+                <!-- Drag-and-drop import tab content -->
+                <div id="pane-import-local" class="import-tab-pane">
+                  <div id="file-drop-zone" class="drop-zone" onclick="triggerFileSelect()">
+                    <span style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;">📥</span>
+                    将 <strong>pet.json</strong> 和 <strong>spritesheet (webp/png)</strong> 文件拖放到此处，或点击选择文件
+                    <input type="file" id="local-files-selector" multiple style="display: none;" onchange="handleFileSelect(event)">
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Store Grid with Infinite Scroll Container -->
+            <div id="store-container" style="max-height: 480px; overflow-y: auto; padding-right: 0.5rem; margin-top: 1rem;">
+              <div class="pet-store-grid" id="pet-store-list">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activePetMetadata = null;
+    let previewState = 'idle';
+    let previewRow = 0;
+    let previewFrameCount = 6;
+    let animationInterval = null;
+    let currentFrameIndex = 0;
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function getProjectName(cwd) {
+      if (!cwd) return '';
+      const parts = cwd.split(/[\/\\]/);
+      return parts[parts.length - 1] || cwd;
+    }
+
+    function getCommandType(command) {
+      if (!command) return { icon: '💻', text: 'cmd' };
+      const cmd = command.trim().split(' ')[0] || '';
+      const base = cmd.toLowerCase();
+      if (base === 'git') return { icon: '🐙', text: 'git' };
+      if (base === 'npm' || base === 'node' || base === 'npx') return { icon: '📦', text: 'node' };
+      if (base === 'python' || base === 'pip' || base === 'python3') return { icon: '🐍', text: 'python' };
+      if (base === 'docker') return { icon: '🐳', text: 'docker' };
+      if (base === 'curl' || base === 'wget') return { icon: '🌐', text: 'net' };
+      if (['cat', 'grep', 'ls', 'find', 'awk', 'sed'].includes(base)) return { icon: '🔍', text: 'search' };
+      if (['nano', 'vim', 'rm', 'mkdir', 'cp', 'mv', 'chmod', 'chown', 'touch'].includes(base)) return { icon: '📝', text: 'file' };
+      return { icon: '💻', text: 'cmd' };
+    }
+
+    function toggleThinking(btn) {
+      const content = btn.nextElementSibling;
+      if (content.style.display === 'none') {
+        content.style.display = 'block';
+        btn.innerText = '💭 思考过程 (点击收起)';
+      } else {
+        content.style.display = 'none';
+        btn.innerText = '💭 思考过程 (点击展开)';
+      }
+    }
+
+    // Tab switcher
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      
+      document.getElementById(tabId).classList.add('active');
+      
+      if (tabId === 'tab-approvals') document.getElementById('btn-tab-approvals').classList.add('active');
+      if (tabId === 'tab-hooks') {
+        document.getElementById('btn-tab-hooks').classList.add('active');
+        fetchHooksStatus();
+      }
+      if (tabId === 'tab-pets') {
+        document.getElementById('btn-tab-pets').classList.add('active');
+        fetchPetStore();
+      }
+    }
+
+    // Fetch and render approvals & history
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+
+        // Update CDN Status Badge
+        const cdnBadge = document.getElementById('cdn-status-badge');
+        if (cdnBadge) {
+          cdnBadge.style.display = data.cdnEnabled ? 'inline-flex' : 'none';
+        }
+
+        // Update Header Status
+        const clientIdInput = document.getElementById('client-id-input');
+        if (clientIdInput && document.activeElement !== clientIdInput) {
+          clientIdInput.value = data.client_id;
+        }
+        document.getElementById('freefly-toggle').checked = data.config.freeFlyMode;
+        
+        // Populate retention limit input if not focused
+        const limitInput = document.getElementById('retention-limit-input');
+        if (limitInput && document.activeElement !== limitInput) {
+          limitInput.value = data.config.logRetentionLimit || 1000;
+        }
+        
+        const banner = document.getElementById('free-fly-banner');
+        if (data.config.freeFlyMode) {
+          banner.style.display = 'flex';
+        } else {
+          banner.style.display = 'none';
+        }
+
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        if (data.mqtt) {
+          statusDot.className = 'status-indicator-dot online';
+          statusText.innerText = 'CONNECTED';
+          statusText.className = 'status-online';
+        } else {
+          statusDot.className = 'status-indicator-dot';
+          statusText.innerText = 'OFFLINE';
+          statusText.className = 'status-offline';
+        }
+
+        // Update Hardware Status
+        const hardwareDot = document.getElementById('hardware-dot');
+        const hardwareText = document.getElementById('hardware-text');
+        if (data.deviceOnline) {
+          hardwareDot.className = 'status-indicator-dot online';
+          hardwareText.innerText = 'ONLINE';
+          hardwareText.className = 'status-online';
+        } else {
+          hardwareDot.className = 'status-indicator-dot';
+          hardwareText.innerText = 'OFFLINE';
+          hardwareText.className = 'status-offline';
+        }
+
+        // Render Pending Queue
+        const pendingList = document.getElementById('pending-list');
+        document.getElementById('pending-count').innerText = data.pending.length;
+
+        if (data.pending.length === 0) {
+          pendingList.innerHTML = `
+            <div class="empty-state">
+              <span class="empty-icon">🛡️</span>
+              <h3>暂无挂起的安全审核请求</h3>
+              <p>Claude Code 或 Antigravity 运行高危操作时，将在此处和物理设备同步拦截提示。</p>
+            </div>
+          `;
+        } else {
+          pendingList.innerHTML = data.pending.map((req, i) => `
+            <div class="request-card">
+              <div class="card-header">
+                <span class="agent-badge ${escapeHtml(req.agent)}">${escapeHtml(req.agent.toUpperCase())}</span>
+                <span class="timestamp">${escapeHtml(req.timestamp)}</span>
+              </div>
+              <div class="card-body">
+                <h4 class="task-title">${escapeHtml(req.task_title || '未命名任务')}</h4>
+                
+                ${req.thinking ? `
+                  <div class="thinking-section">
+                    <span class="section-label">AI 思考过程:</span>
+                    <p class="thinking-text">${escapeHtml(req.thinking)}</p>
+                  </div>
+                ` : ''}
+
+                <div class="command-section">
+                  <span class="section-label">要执行的命令行:</span>
+                  <pre class="command-code"><code>${escapeHtml(req.command)}</code></pre>
+                </div>
+                <div class="cwd-section">
+                  <span class="section-label">工作目录:</span>
+                  <span class="cwd-text font-mono">${escapeHtml(req.cwd)}</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <button onclick="takeAction('${escapeHtml(req.id)}', 'approve')" class="btn btn-approve">
+                  <span class="btn-icon">✓</span> 批准执行
+                </button>
+                <button onclick="takeAction('${escapeHtml(req.id)}', 'reject')" class="btn btn-reject">
+                  <span class="btn-icon">✗</span> 拒绝执行
+                </button>
+              </div>
+            </div>
+          `).join('');
+        }
+
+        // Render History
+        const historyList = document.getElementById('history-list');
+        if (data.history.length === 0) {
+          historyList.innerHTML = `
+            <div class="empty-state">
+              <p>暂无历史操作记录。</p>
+            </div>
+          `;
+        } else {
+          historyList.innerHTML = [...data.history].reverse().slice(0, 100).map(h => {
+            let statusClass = 'auto-approved';
+            let statusText = h.status;
+            if (h.exitCode !== undefined) {
+              if (h.exitCode === 0) {
+                statusClass = 'success';
+                statusText = '已完成 (成功)';
+              } else {
+                statusClass = 'failed';
+                statusText = `已完成 (返回码: ${h.exitCode})`;
+              }
+            } else if (h.status === 'Approved' || h.status === 'Auto-Approved') {
+              statusClass = 'approved';
+            } else if (h.status === 'Rejected') {
+              statusClass = 'rejected';
+            }
+
+            const cmdType = getCommandType(h.command);
+            const projName = getProjectName(h.cwd);
+
+            return `
+              <div class="history-item status-${statusClass}">
+                <div class="item-meta">
+                  <span class="item-agent badge">${escapeHtml(h.agent)}</span>
+                  ${projName ? `<span class="project-badge">📁 ${escapeHtml(projName)}</span>` : ''}
+                  <span class="item-time">${escapeHtml(h.timestamp)}</span>
+                </div>
+                <div class="item-detail">
+                  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                    <span class="command-type-badge ${cmdType.text}">${cmdType.icon} ${cmdType.text.toUpperCase()}</span>
+                    <span class="item-title" style="margin-bottom: 0;">${escapeHtml(h.task_title || '未命名任务')}</span>
+                  </div>
+                  <div class="item-cmd font-mono">${escapeHtml(h.command)}</div>
+                  ${h.cwd ? `<div class="item-cwd-path font-mono" title="${escapeHtml(h.cwd)}">CWD: ${escapeHtml(h.cwd)}</div>` : ''}
+                  
+                  ${h.thinking ? `
+                    <div class="thinking-collapse">
+                      <button class="btn-thinking-toggle" onclick="toggleThinking(this)">💭 思考过程 (点击展开)</button>
+                      <div class="thinking-content font-mono" style="display: none;">${escapeHtml(h.thinking)}</div>
+                    </div>
+                  ` : ''}
+                </div>
+                <div class="item-status">
+                  <span class="status-badge ${statusClass}">${statusText}</span>
+                  <span class="source-badge">模式: ${escapeHtml(h.mode || 'strict')} | ${escapeHtml(h.source)}</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+      } catch (err) {
+        console.error('Error fetching dashboard status:', err);
+      }
+    }
+
+    async function takeAction(id, action) {
+      try {
+        const res = await fetch('/api/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, action })
+        });
+        const result = await res.json();
+        if (result.success) {
+          fetchStatus();
+        }
+      } catch (err) {
+        console.error('Action failed:', err);
+      }
+    }
+
+    async function toggleFreeFly(checked) {
+      try {
+        const res = await fetch('/api/config/freefly', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ freeFlyMode: checked })
+        });
+        const result = await res.json();
+        if (result.success) {
+          fetchStatus();
+        }
+      } catch (err) {
+        console.error('Failed to toggle Free Fly Mode:', err);
+      }
+    }
+
+    // TAB 2: HOOK MANAGER CONTROLS
+    async function fetchHooksStatus() {
+      try {
+        const res = await fetch('/api/hooks/status');
+        const data = await res.json();
+        
+        const hooksList = document.getElementById('hooks-list');
+        hooksList.innerHTML = data.statuses.map(h => {
+          const actionBtn = h.installed
+            ? `<button onclick="toggleHookMode('${h.id}', 'disabled')" class="btn btn-reject" style="width: 100%; margin-top: 0.5rem; justify-content: center;">🗑️ 卸载并禁用 Hook</button>`
+            : `<button onclick="toggleHookMode('${h.id}', 'strict')" class="btn btn-approve" style="width: 100%; margin-top: 0.5rem; justify-content: center; background: var(--accent-primary); color: #fff; box-shadow: var(--glass-glow);">⚡ 安装并启用 Hook</button>`;
+
+          return `
+            <div class="hook-card">
+              <div class="hook-card-header">
+                <h3>${h.name}</h3>
+                <span class="hook-status-badge ${h.installed ? 'installed' : 'uninstalled'}">
+                  ${h.installed ? '保护中 (Hook 已写入)' : '不做操作 (Hook 未写入)'}
+                </span>
+              </div>
+              <div class="hook-details">
+                <span class="section-label">配置路径:</span>
+                <span class="hook-path font-mono">${h.configPath}</span>
+                <span class="section-label">检测状态:</span>
+                <span>${h.detected ? '✅ 已在系统检测到此客户端' : 'ℹ️ 未检测到配置目录'}</span>
+              </div>
+              <div class="mode-selector-group">
+                <span class="section-label">模式设定:</span>
+                <select class="mode-select" ${!h.installed ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''} onchange="toggleHookMode('${h.id}', this.value)">
+                  <option value="disabled" ${h.mode === 'disabled' ? 'selected' : ''}>❌ 彻底关闭 (Disabled)</option>
+                  <option value="strict" ${h.mode === 'strict' ? 'selected' : ''}>🛡️ 强安全拦截 (Strict)</option>
+                  <option value="monitor" ${h.mode === 'monitor' ? 'selected' : ''}>📊 静默审计 (Monitor)</option>
+                  <option value="companion" ${h.mode === 'companion' ? 'selected' : ''}>👾 伴侣随动 (Companion)</option>
+                </select>
+              </div>
+              <div class="hook-actions-row">
+                ${actionBtn}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // Fetch config for project overrides
+        const configRes = await fetch('/api/config');
+        const configData = await configRes.json();
+        
+        const projectsList = document.getElementById('projects-list');
+        if (Object.keys(configData.projects).length === 0) {
+          projectsList.innerHTML = '<p class="cwd-text" style="text-align: center; margin: 1rem 0;">目前没有特异性项目配置，全部继承全局或平台设置。</p>';
+        } else {
+          projectsList.innerHTML = Object.entries(configData.projects).map(([path, proj]) => `
+            <div class="project-row">
+              <div class="project-info">
+                <span class="project-path font-mono">${path}</span>
+                <span class="project-mode-badge">默认模式: <strong>${proj.mode.toUpperCase()}</strong></span>
+              </div>
+              <button onclick="deleteProjectOverride('${path}')" class="btn btn-reject" style="flex: initial; padding: 0.4rem 0.8rem; font-size: 0.8rem;">删除</button>
+            </div>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('Failed to fetch hooks status:', err);
+      }
+    }
+
+    async function toggleHookMode(agentId, mode) {
+      try {
+        const res = await fetch('/api/hooks/toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agentId, mode })
+        });
+        const result = await res.json();
+        if (result.success) {
+          fetchHooksStatus();
+        }
+      } catch (err) {
+        console.error('Failed to toggle hook mode:', err);
+      }
+    }
+
+    async function addProjectOverride() {
+      const pathInput = document.getElementById('project-path-input');
+      const modeSelect = document.getElementById('project-mode-input');
+      const projectPath = pathInput.value.trim();
+      const mode = modeSelect.value;
+
+      if (!projectPath) return alert('请输入项目绝对路径');
+
+      try {
+        const res = await fetch('/api/config/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectPath, mode })
+        });
+        const result = await res.json();
+        if (result.success) {
+          pathInput.value = '';
+          fetchHooksStatus();
+        }
+      } catch (err) {
+        console.error('Failed to add project override:', err);
+      }
+    }
+
+    async function deleteProjectOverride(projectPath) {
+      try {
+        const res = await fetch('/api/config/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectPath, mode: 'delete' })
+        });
+        const result = await res.json();
+        if (result.success) {
+          fetchHooksStatus();
+        }
+      } catch (err) {
+        console.error('Failed to delete project override:', err);
+      }
+    }
+
+    let allStorePets = []; // Raw list from manifest
+    let filteredStorePets = []; // Filtered list based on search
+    let storePageSize = 8;
+    let storePageCount = 1;
+    let searchDebounceTimeout = null;
+
+    // Save Retention Limit
+    async function saveRetentionLimit(val) {
+      const limit = parseInt(val, 10);
+      if (isNaN(limit) || limit < 10) return alert('请输入大于等于 10 的整数');
+      try {
+        await fetch('/api/config/retention', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ limit })
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    
+    // Safe Shutdown Confirmation Modal handlers
+    function openShutdownModal() {
+      document.getElementById('shutdown-modal').classList.add('active');
+    }
+    
+    function closeShutdownModal() {
+      document.getElementById('shutdown-modal').classList.remove('active');
+    }
+    
+    async function confirmShutdown() {
+      closeShutdownModal();
+      const overlay = document.getElementById('shutdown-overlay');
+      overlay.classList.add('active');
+      
+      try {
+        const res = await fetch('/api/shutdown', { method: 'POST' });
+        const data = await res.json();
+        
+        // Delay slightly for dramatic overlay effect
+        setTimeout(() => {
+          document.getElementById('shutdown-title').innerText = '🛡️ 服务已安全关闭';
+          document.getElementById('shutdown-icon').innerText = '✅';
+          document.getElementById('shutdown-desc').innerHTML = `
+            守护进程已清理系统 Hook 并退出。<br>
+            <span style="color: var(--accent-approve); font-weight: bold;">所有文件拦截保护已解除</span>。<br>
+            您现在可以关闭本浏览器选项卡。
+          `;
+        }, 1000);
+      } catch (err) {
+        document.getElementById('shutdown-title').innerText = '⚠️ 关闭失败';
+        document.getElementById('shutdown-icon').innerText = '❌';
+        document.getElementById('shutdown-desc').innerText = '连接已被拒绝或遇到错误: ' + err.message;
+      }
+    }
+    
+    // Manual Import Switch Tab
+    function switchImportTab(type) {
+      document.getElementById('btn-import-url').classList.toggle('active', type === 'url');
+      document.getElementById('btn-import-local').classList.toggle('active', type === 'local');
+      
+      document.getElementById('pane-import-url').classList.toggle('active', type === 'url');
+      document.getElementById('pane-import-local').classList.toggle('active', type === 'local');
+    }
+    
+    // Single-URL Import trigger
+    async function importPetByJsonUrl() {
+      const urlInput = document.getElementById('custom-pet-url-only');
+      const petJsonUrl = urlInput.value.trim();
+      if (!petJsonUrl) return alert('请输入 pet.json 完整公网地址');
+      
+      const btn = event.target;
+      const oldText = btn.innerText;
+      btn.innerText = '⏳ 导入中...';
+      btn.disabled = true;
+      
+      try {
+        const res = await fetch('/api/pets/import-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ petJsonUrl })
+        });
+        const data = await res.json();
+        if (data.success) {
+          urlInput.value = '';
+          alert('导入成功，宠物已下载并打包！');
+          fetchPetStore();
+        } else {
+          alert('导入失败: ' + data.error);
+        }
+      } catch (err) {
+        alert('网络请求出错: ' + err.message);
+      } finally {
+        btn.innerText = oldText;
+        btn.disabled = false;
+      }
+    }
+
+    // Handle File Input selection
+    function triggerFileSelect() {
+      document.getElementById('local-files-selector').click();
+    }
+    
+    function handleFileSelect(event) {
+      const files = event.target.files;
+      uploadLocalFiles(files);
+    }
+    
+    // Drag and drop events setup
+    window.addEventListener('DOMContentLoaded', () => {
+      const dropZone = document.getElementById('file-drop-zone');
+      if (!dropZone) return;
+      
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          dropZone.classList.add('dragover');
+        }, false);
+      });
+      
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          dropZone.classList.remove('dragover');
+        }, false);
+      });
+      
+      dropZone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        uploadLocalFiles(files);
+      }, false);
+    });
+    
+    async function uploadLocalFiles(files) {
+      if (files.length < 2) {
+        return alert('请同时选择或拖入 pet.json 和 spritesheet 图像两个文件');
+      }
+      
+      let petJsonFile = null;
+      let spritesheetFile = null;
+      
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        if (f.name === 'pet.json') {
+          petJsonFile = f;
+        } else if (f.name.endsWith('.png') || f.name.endsWith('.webp') || f.name.endsWith('.jpg') || f.name.endsWith('.jpeg')) {
+          spritesheetFile = f;
+        }
+      }
+      
+      if (!petJsonFile || !spritesheetFile) {
+        return alert('请确保上传的文件包含且仅包含: \n1. 精确命名为 "pet.json" 的配置文件\n2. 包含精灵表的图片文件 (png/webp)');
+      }
+      
+      const formData = new FormData();
+      formData.append('petJson', petJsonFile);
+      formData.append('spritesheet', spritesheetFile);
+      
+      const dropZone = document.getElementById('file-drop-zone');
+      const oldHtml = dropZone.innerHTML;
+      dropZone.innerHTML = `<span style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;">⚙️</span> 正在解析并上传打包中，请稍候...`;
+      
+      try {
+        const res = await fetch('/api/pets/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('文件上传并本地打包成功！已自动加载到我的宠物列表！');
+          fetchPetStore();
+        } else {
+          alert('导入打包失败: ' + data.error);
+        }
+      } catch (err) {
+        alert('请求发生错误: ' + err.message);
+      } finally {
+        dropZone.innerHTML = oldHtml;
+      }
+    }
+
+    // Search handler with debounce
+    function handleSearch(query) {
+      if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout);
+      searchDebounceTimeout = setTimeout(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) {
+          filteredStorePets = [...allStorePets];
+        } else {
+          filteredStorePets = allStorePets.filter(p => 
+            (p.displayName && p.displayName.toLowerCase().includes(q)) || 
+            (p.description && p.description.toLowerCase().includes(q))
+          );
+        }
+        // Reset infinite scroll page
+        storePageCount = 1;
+        renderStorePets(true);
+      }, 200);
+    }
+  
+    // Infinite Scroll scroll handler setup
+    window.addEventListener('DOMContentLoaded', () => {
+      const container = document.getElementById('store-container');
+      if (!container) return;
+      container.addEventListener('scroll', () => {
+        if (container.scrollHeight - container.scrollTop - container.clientHeight < 30) {
+          loadMoreStorePets();
+        }
+      });
+    });
+  
+    function loadMoreStorePets() {
+      const maxPage = Math.ceil(filteredStorePets.length / storePageSize);
+      if (storePageCount < maxPage) {
+        storePageCount++;
+        renderStorePets(false); // Append
+      }
+    }
+  
+    function renderStorePets(clearOld = true) {
+      const list = document.getElementById('pet-store-list');
+      if (!list) return;
+  
+      if (filteredStorePets.length === 0) {
+        list.innerHTML = `<div style="grid-column: 1/-1; padding: 2rem; color: var(--text-muted); text-align: center;">未找到匹配的宠物。</div>`;
+        return;
+      }
+  
+      const sliceEnd = storePageCount * storePageSize;
+      const visiblePets = filteredStorePets.slice(0, sliceEnd);
+      
+      const renderItemHtml = (p) => {
+        const isActive = activePetMetadata && activePetMetadata.id === p.slug;
+        const localImportedList = window.currentImportedPets || [];
+        const isImported = localImportedList.some(i => i.slug === p.slug);
+        
+        let actionButton = '';
+        if (isActive) {
+          actionButton = `<button class="btn btn-approve" disabled style="background: rgba(16, 185, 129, 0.2); color: var(--accent-approve); border: 1px solid rgba(16, 185, 129, 0.3);">🟢 当前激活中</button>`;
+        } else if (isImported) {
+          actionButton = `<button onclick="activatePet('${p.slug}')" class="btn btn-approve">激活此宠物</button>`;
+        } else {
+          actionButton = `<button onclick="importPet('${p.slug}', '${p.petJsonUrl}', '${p.spritesheetUrl}')" class="btn" style="background: var(--accent-primary); color: #fff;">📥 一键导入</button>`;
+        }
+  
+        return `
+          <div class="store-pet-card">
+            <div class="store-pet-avatar" style="width: 77px; height: 83px; overflow: hidden; position: relative; border-radius: 8px; background: rgba(255, 255, 255, 0.02); display: flex; align-items: flex-start; justify-content: flex-start; margin: 0 auto;">
+              <div style="width: 192px; height: 208px; background-image: url('${p.spritesheetUrl}'); background-repeat: no-repeat; background-position: 0px 0px; transform: scale(0.4); transform-origin: top left; image-rendering: pixelated; flex-shrink: 0;"></div>
+            </div>
+            <div class="store-pet-name">${p.displayName}</div>
+            <div class="store-pet-author">提交者: @${p.submittedBy || '匿名'}</div>
+            <div class="store-pet-desc">${p.description || '无介绍'}</div>
+            <div class="store-pet-actions">
+              ${actionButton}
+            </div>
+          </div>
+        `;
+      };
+  
+      list.innerHTML = visiblePets.map(renderItemHtml).join('');
+    }
+  
+    // TAB 3: PET STORE & ANIMATION PREVIEW
+    async function fetchPetStore() {
+      try {
+        // Fetch active pet metadata
+        const metadataRes = await fetch('/api/active-pet/metadata');
+        if (metadataRes.ok) {
+          activePetMetadata = await metadataRes.json();
+          document.getElementById('active-pet-name').innerText = activePetMetadata.displayName;
+          document.getElementById('active-pet-desc').innerText = activePetMetadata.description;
+          
+          // Start animation preview using local assets path
+          const localSpritesheetUrl = `/pets/${activePetMetadata.id}/${activePetMetadata.spritesheetPath || 'spritesheet.webp'}`;
+          const config = activePetMetadata.animations || {};
+          const stateConfig = config[previewState] || { row: previewRow, frames: previewFrameCount };
+          
+          previewRow = stateConfig.row;
+          previewFrameCount = stateConfig.frames;
+          
+          animatePreview(localSpritesheetUrl, previewFrameCount, previewRow);
+        }
+  
+        // Fetch local imported list
+        const importedRes = await fetch('/api/pets/imported');
+        const importedData = await importedRes.json();
+        window.currentImportedPets = importedData.pets || [];
+        
+        // Render My Pets Panel
+        const installedList = document.getElementById('installed-pets-list');
+        if (importedData.pets.length === 0) {
+          installedList.innerHTML = `<div style="grid-column: 1/-1; padding: 1rem; color: var(--text-muted); text-align: center;">无本地已导入的宠物。请从市场下载或手动导入！</div>`;
+        } else {
+          installedList.innerHTML = importedData.pets.map(p => {
+            const isActive = activePetMetadata && activePetMetadata.id === p.slug;
+            const deleteButton = isActive ? '' : `<button onclick="deleteLocalPet('${p.slug}')" class="btn-delete-pet" title="删除本地宠物">🗑️</button>`;
+            return `
+              <div class="installed-pet-card ${isActive ? 'active-card' : ''}">
+                ${deleteButton}
+                <div class="store-pet-avatar" style="width: 58px; height: 62px; overflow: hidden; position: relative; border-radius: 6px; background: rgba(255, 255, 255, 0.02); display: flex; align-items: flex-start; justify-content: flex-start; margin: 0 auto;">
+                  <div style="width: 192px; height: 208px; background-image: url('/pets/${p.slug}/spritesheet.${p.spritesheetExt || 'webp'}'); background-repeat: no-repeat; background-position: 0px 0px; transform: scale(0.3); transform-origin: top left; image-rendering: pixelated; flex-shrink: 0;"></div>
+                </div>
+                <div style="font-weight: bold; font-size: 0.9rem; color: #fff;">${p.displayName}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); max-height: 2.2rem; overflow: hidden;">${p.description || '无介绍'}</div>
+                <button onclick="activatePet('${p.slug}')" class="btn btn-sm ${isActive ? 'btn-approve' : ''}" style="width: 100%; font-size: 0.75rem; margin-top: 0.25rem;" ${isActive ? 'disabled' : ''}>
+                  ${isActive ? '🟢 活跃中' : '使用'}
+                </button>
+              </div>
+            `;
+          }).join('');
+        }
+  
+        // Fetch online store
+        const storeRes = await fetch('/api/pets/store');
+        const onlineData = await storeRes.json();
+        allStorePets = onlineData.pets || [];
+        
+        // Filter and Render
+        const searchInput = document.getElementById('store-search-input');
+        handleSearch(searchInput ? searchInput.value : '');
+  
+      } catch (err) {
+        console.error('Failed to fetch pet store:', err);
+      }
+    }
+  
+    // Animate the spritesheet frame preview
+    function animatePreview(url, frames, row) {
+      if (animationInterval) clearInterval(animationInterval);
+      
+      const preview = document.getElementById('mascot-preview');
+      preview.style.backgroundImage = `url(${url})`;
+      preview.style.backgroundPositionY = `-${row * 208}px`;
+      
+      currentFrameIndex = 0;
+      animationInterval = setInterval(() => {
+        currentFrameIndex = (currentFrameIndex + 1) % frames;
+        preview.style.backgroundPositionX = `-${currentFrameIndex * 192}px`;
+      }, 150);
+    }
+  
+    function changePreviewState(state, defaultRow) {
+      previewState = state;
+      document.querySelectorAll('.btn-state-preview').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+  
+      if (activePetMetadata) {
+        const config = activePetMetadata.animations || {};
+        const stateConfig = config[state] || { row: defaultRow, frames: 6 };
+        previewRow = stateConfig.row;
+        previewFrameCount = stateConfig.frames;
+        
+        const localSpritesheetUrl = `/pets/${activePetMetadata.id}/${activePetMetadata.spritesheetPath || 'spritesheet.webp'}`;
+        animatePreview(localSpritesheetUrl, previewFrameCount, previewRow);
+      }
+    }
+  
+    async function importPet(slug, petJsonUrl, spritesheetUrl) {
+      try {
+        const btn = event.target;
+        btn.innerText = '⏳ 正在导入中...';
+        btn.disabled = true;
+  
+        const res = await fetch('/api/pets/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug, petJsonUrl, spritesheetUrl })
+        });
+        
+        const result = await res.json();
+        if (result.success) {
+          fetchPetStore();
+        } else {
+          alert('导入失败: ' + result.error);
+          fetchPetStore();
+        }
+      } catch (err) {
+        console.error('Import failed:', err);
+      }
+    }
+  
+    async function activatePet(slug) {
+      try {
+        const btn = event.target;
+        btn.innerText = '⚙️ 正在激活...';
+        btn.disabled = true;
+  
+        const res = await fetch('/api/pets/active', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug })
+        });
+        
+        const result = await res.json();
+        if (result.success) {
+          fetchPetStore();
+          fetchPetStore();
+        } else {
+          alert('激活失败: ' + result.error);
+          fetchPetStore();
+        }
+      } catch (err) {
+        console.error('Activation failed:', err);
+      }
+    }
+
+    async function importCustomPet() {
+      const slugInput = document.getElementById('custom-pet-slug');
+      const jsonInput = document.getElementById('custom-pet-json');
+      const spriteInput = document.getElementById('custom-pet-spritesheet');
+
+      const slug = slugInput.value.trim();
+      const petJsonUrl = jsonInput.value.trim();
+      const spritesheetUrl = spriteInput.value.trim();
+
+      if (!slug || !petJsonUrl || !spritesheetUrl) {
+        return alert('请填入所有自定义参数');
+      }
+
+      try {
+        const res = await fetch('/api/pets/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug, petJsonUrl, spritesheetUrl })
+        });
+        const result = await res.json();
+        if (result.success) {
+          slugInput.value = '';
+          jsonInput.value = '';
+          spriteInput.value = '';
+          fetchPetStore();
+          alert('自定义宠物导入成功，现可在市场列表中点击激活！');
+        } else {
+          alert('导入失败: ' + result.error);
+        }
+      } catch (err) {
+        console.error('Custom import failed:', err);
+      }
+    }
+
+    async function saveClientId(val) {
+      const clientId = val.trim();
+      if (!clientId) return alert('Client ID 不能为空');
+      try {
+        await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientId })
+        });
+        alert('Client ID 配置已成功保存！后台通信正在重连...');
+      } catch (err) {
+        console.error('Failed to save Client ID:', err);
+      }
+    }
+
+    function copyClientId() {
+      const input = document.getElementById('client-id-input');
+      if (input) {
+        navigator.clipboard.writeText(input.value)
+          .then(() => alert('Client ID 已复制到剪贴板！请将其写入您 ESP32 源码中的 client_id 字段。'))
+          .catch(err => console.error('复制失败:', err));
+      }
+    }
+
+    async function deleteLocalPet(slug) {
+      if (!confirm(`确定要彻底删除本地宠物 "${slug}" 的文件夹吗？此操作不可逆！`)) return;
+      try {
+        const res = await fetch(`/api/pets/${slug}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          alert('删除成功！');
+          fetchPetStore();
+        } else {
+          alert('删除失败: ' + data.error);
+        }
+      } catch (err) {
+        alert('请求失败: ' + err.message);
+      }
+    }
+
+    // Poll status every 1 second
+    setInterval(fetchStatus, 1000);
+    fetchStatus();
+  </script>
+
+  <!-- Safe Shutdown Confirmation Modal -->
+  <div class="modal-backdrop" id="shutdown-modal">
+    <div class="confirm-modal">
+      <h3 style="margin-bottom: 1rem; color: #fff; font-size: 1.25rem;">安全关闭服务</h3>
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem; line-height: 1.5;">
+        这将从所有已安装的 AI 工具中安全清理/卸载 Hook，并关闭守护进程服务。退出后拦截检测将暂时失效。是否确定关闭？
+      </p>
+      <div style="display: flex; gap: 1rem; justify-content: center;">
+        <button onclick="confirmShutdown()" class="btn btn-approve" style="background: var(--accent-reject); color: #fff;">确认关闭</button>
+        <button onclick="closeShutdownModal()" class="btn" style="background: rgba(255,255,255,0.05); color: #fff;">取消</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Safe Shutdown Processing & Completed Screen -->
+  <div class="shutdown-overlay" id="shutdown-overlay">
+    <div class="shutdown-content">
+      <div class="shutdown-icon" id="shutdown-icon">⏳</div>
+      <h2 style="font-size: 1.8rem; margin-bottom: 1rem;" id="shutdown-title">正在卸载 Hook...</h2>
+      <p style="color: var(--text-muted); max-width: 400px; line-height: 1.6;" id="shutdown-desc">
+        正在清理系统中注册的 AI 命令拦截节点，请稍候。
+      </p>
+    </div>
+  </div>
+</body>
+</html>

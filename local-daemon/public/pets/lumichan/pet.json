@@ -1,0 +1,34 @@
+{
+  "id": "lumichan",
+  "displayName": "Lumichan",
+  "description": "A tiny cute Codex pet inspired by the reference girl's soft brown hair, big brown eyes, rosy lips, and cream floral dress.",
+  "spritesheetPath": "spritesheet.webp",
+  "kind": "person",
+  "ownerId": "793980dd-4b19-45b1-b871-7ef1aeac9d46",
+  "ownerHandle": "iamohmcub",
+  "ownerName": "iamohmcub",
+  "ownerAvatarUrl": null,
+  "uploadedAt": "2026-05-26T18:08:45.518Z",
+  "viewCount": 6,
+  "downloadCount": 0,
+  "likeCount": 0,
+  "commentCount": 0,
+  "likedByMe": false,
+  "ownerShadowbanned": false,
+  "tags": [
+    "cute"
+  ],
+  "spritesheetUrl": "https://codex-pets.net/assets/pets/v/1779818925518/lumichan/spritesheet.webp",
+  "posterUrl": "https://codex-pets.net/assets/pets/v/1779818925518/lumichan/poster.webp",
+  "previewUrl": "https://codex-pets.net/assets/pets/v/1779818925518/lumichan/preview.webp",
+  "shareImageUrl": "https://codex-pets.net/assets/pets/v/1779818925518/lumichan/share.png",
+  "downloadUrl": "/api/pets/lumichan/download?v=1779818925518",
+  "validationReport": {
+    "manifestId": "lumichan",
+    "atlasSize": "1536x1872",
+    "cellSize": "192x208",
+    "statesDetected": 9,
+    "manifestBytes": 256,
+    "spritesheetBytes": 2122940
+  }
+}

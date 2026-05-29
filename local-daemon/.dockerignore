@@ -1,0 +1,8 @@
+node_modules
+.env
+.git
+.gitignore
+*.log
+audit_history.json
+config.json
+temp-uploads

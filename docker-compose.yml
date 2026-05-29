@@ -1,0 +1,31 @@
+services:
+  backend:
+    build:
+      context: ./local-daemon
+      dockerfile: Dockerfile
+    container_name: aegis_pet_backend
+    user: "${UID:-1000}:${GID:-1000}"
+    working_dir: ${PWD}/local-daemon
+    environment:
+      - HOME=${HOME}
+    volumes:
+      # 映射项目目录，确保路径和宿主机保持完全一致以契合 hook 里的绝对路径
+      - .:${PWD}
+      # 避免宿主机的 node_modules 覆盖容器内的 node_modules
+      - ${PWD}/local-daemon/node_modules
+      # 映射配置及临时状态，实现双向同步
+      - ${HOME}/.claude:${HOME}/.claude
+      - ${HOME}/.config/Antigravity:${HOME}/.config/Antigravity
+      - ${HOME}/.config/opencode:${HOME}/.config/opencode
+      - ${HOME}/.gemini:${HOME}/.gemini
+      - ${HOME}/.codex:${HOME}/.codex
+      - /tmp/code_dog_config.json:/tmp/code_dog_config.json
+    ports:
+      - "127.0.0.1:4000:4000"
+      - "127.0.0.1:4001:4001"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    restart: always
