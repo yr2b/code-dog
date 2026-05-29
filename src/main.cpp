@@ -140,6 +140,7 @@ String companionState = "idle";
 unsigned long companionStateExpiry = 0;
 String bubbleText = "";
 unsigned long bubbleTextExpiry = 0;
+String companionAgent = "";
 int currentFrameIndex = 0;
 unsigned long lastFrameTime = 0;
 
@@ -1111,9 +1112,41 @@ void drawCompanionScreen() {
       gfx->setFont(u8g2_font_unifont_t_chinese4);
 #endif
 
+      int startX = 20;
+      int maxW = 200;
+      
+      String agent = companionAgent;
+      agent.trim();
+      agent.toLowerCase();
+      
+      if (agent.length() > 0) {
+        int logoX = 16;
+        int logoY = 192; // 垂直居中于气泡内: 182 + (52 - 32) / 2
+        bool drewLogo = true;
+        
+        if (agent.indexOf("claude") >= 0) {
+          gfx->drawBitmap(logoX, logoY, logo_claude, 32, 32, COLOR_CYAN, COLOR_CARD_BG);
+        } else if (agent.indexOf("gemini") >= 0) {
+          gfx->drawBitmap(logoX, logoY, logo_gemini, 32, 32, COLOR_CYAN, COLOR_CARD_BG);
+        } else if (agent.indexOf("antigravity") >= 0) {
+          gfx->drawBitmap(logoX, logoY, logo_antigravity, 32, 32, COLOR_CYAN, COLOR_CARD_BG);
+        } else if (agent.indexOf("codex") >= 0 || agent.indexOf("copilot") >= 0) {
+          gfx->drawBitmap(logoX, logoY, logo_codex, 32, 32, COLOR_CYAN, COLOR_CARD_BG);
+        } else if (agent.indexOf("opencode") >= 0) {
+          gfx->drawBitmap(logoX, logoY, logo_opencode, 32, 32, COLOR_CYAN, COLOR_CARD_BG);
+        } else {
+          drewLogo = false;
+        }
+        
+        if (drewLogo) {
+          startX = 54;
+          maxW = 156;
+        }
+      }
+
       String msg = bubbleText;
       if (msg.length() > 44) msg = msg.substring(0, 41) + "...";
-      drawWrappedText(msg, 20, 198, 200, 18, true);
+      drawWrappedText(msg, startX, 198, maxW, 18, true);
       lastBubbleText = bubbleText;
     }
   }
@@ -1265,6 +1298,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
       bubbleText = text;
       bubbleTextExpiry = millis() + 4000; // Bubble lasts 4s
     }
+
+    companionAgent = doc["agent"] | "";
   }
 }
 

@@ -596,7 +596,8 @@ app.post('/api/approve', async (req, res) => {
           state: espState, 
           duration: 3000,
           text: description,
-          thinking: latestThinking
+          thinking: latestThinking,
+          agent: agent
         }));
       }
     });
@@ -1232,7 +1233,8 @@ app.post('/api/hook/event', (req, res) => {
     mqttClient.publish(`ai/pet_state/${cid}`, JSON.stringify({ 
       state: petState, 
       duration: 5000,
-      text: description
+      text: description,
+      agent: agent
     }));
   }
 });
@@ -1260,7 +1262,7 @@ app.post('/api/result', (req, res) => {
 
   if (mqttClient && mqttClient.connected) {
     const cid = config.clientId || 'client_zyx_s3';
-    mqttClient.publish(`ai/pet_state/${cid}`, JSON.stringify({ state: animState, duration: 3000 }));
+    mqttClient.publish(`ai/pet_state/${cid}`, JSON.stringify({ state: animState, duration: 3000, agent: agent }));
 
     // Return to idle after 3 seconds
     setTimeout(() => {
