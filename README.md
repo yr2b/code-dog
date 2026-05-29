@@ -5,7 +5,7 @@
 # code-dog 🐶
 
 <p align="center">
-  <b>[English](README_EN.md) | 简体中文</b>
+  <b><a href="README_EN.md">English</a> | 简体中文</b>
 </p>
 
 > **基于 ESP32-S3 触摸屏的多平台 AI 编程助手（Claude Code, Gemini, Antigravity, Codex, OpenCode）物理安全看门狗与电子宠物系统。支持从 Petdex 与 Codex-pets 平台一键导入宠物资产进行打包展示。**

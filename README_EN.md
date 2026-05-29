@@ -5,7 +5,7 @@
 # code-dog 🐶
 
 <p align="center">
-  <b>English | [简体中文](README.md)</b>
+  <b>English | <a href="README.md">简体中文</a></b>
 </p>
 
 > **A physical security gateway & desktop mascot on ESP32-S3 for Claude Code, Gemini, Antigravity, Codex, and OpenCode. Supports direct importing and packaging of pet assets from Petdex & Codex-pets.**
