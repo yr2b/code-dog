@@ -253,6 +253,28 @@ function connectMQTT() {
     
     if (topicStr === `ai/heartbeat/${currentId}`) {
       lastDeviceHeartbeat = Date.now();
+      
+      try {
+        const payload = JSON.parse(message.toString());
+        
+        // Cache battery and charging info in config
+        if (typeof payload.battery === 'number') {
+          config.deviceBattery = payload.battery;
+          config.deviceCharging = !!payload.charging;
+        }
+
+        // Self-healing check: trigger sync if device reports pet not loaded or slug mismatch
+        const deviceNeedsPet = !payload.pet_loaded || payload.active_slug !== config.activePet;
+        if (deviceNeedsPet) {
+          console.log(`[Sync System] Device reports pet not loaded or slug mismatch (device: "${payload.active_slug || ''}", config: "${config.activePet}"). Triggering automatic sync...`);
+          syncActivePetToDevice(config.activePet).catch(err => {
+            console.error('[Sync System] Auto sync active pet to device failed:', err);
+          });
+        }
+      } catch (e) {
+        // Fallback for legacy text-based "ping" heartbeats
+        console.log(`[Sync System] Legacy heartbeat received from ${currentId}: "${message.toString()}"`);
+      }
       return;
     }
 
