@@ -50,6 +50,7 @@
           <span class="status-label">硬件状态:</span>
           <span class="status-indicator-dot" id="hardware-dot"></span>
           <span id="hardware-text" class="status-offline">OFFLINE</span>
+          <span id="hardware-battery" class="hardware-battery" style="display: none;"></span>
         </div>
         <div class="status-item">
           <span class="status-label">日志上限:</span>
@@ -341,14 +342,43 @@
         // Update Hardware Status
         const hardwareDot = document.getElementById('hardware-dot');
         const hardwareText = document.getElementById('hardware-text');
+        const hardwareBattery = document.getElementById('hardware-battery');
+        
         if (data.deviceOnline) {
           hardwareDot.className = 'status-indicator-dot online';
           hardwareText.innerText = 'ONLINE';
           hardwareText.className = 'status-online';
+          
+          if (hardwareBattery && data.config) {
+            const battery = data.config.deviceBattery;
+            const charging = data.config.deviceCharging;
+            
+            if (typeof battery === 'number') {
+              let icon = battery <= 20 ? '🪫' : '🔋';
+              if (charging) icon = '⚡';
+              
+              hardwareBattery.innerHTML = `<span>${icon}</span> <span>${battery}%</span>`;
+              hardwareBattery.style.display = 'inline-flex';
+              
+              // Apply specific classes for color/glow effects
+              if (charging) {
+                hardwareBattery.className = 'hardware-battery charging';
+              } else if (battery <= 20) {
+                hardwareBattery.className = 'hardware-battery low';
+              } else {
+                hardwareBattery.className = 'hardware-battery';
+              }
+            } else {
+              hardwareBattery.style.display = 'none';
+            }
+          }
         } else {
           hardwareDot.className = 'status-indicator-dot';
           hardwareText.innerText = 'OFFLINE';
           hardwareText.className = 'status-offline';
+          if (hardwareBattery) {
+            hardwareBattery.style.display = 'none';
+          }
         }
 
         // Render Pending Queue
