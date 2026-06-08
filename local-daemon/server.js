@@ -830,16 +830,17 @@ async function resolvePetJsonUrl(inputUrl) {
 
   // 2. Try to extract slug from URL
   let slug = null;
-  // Match "/pets/slug", "/pet/slug", "?pets/slug", "?pet/slug", "&pets/slug", "/pets/#/slug", etc.
-  let match = cleaned.match(/[/?&]pets?\/#?\/([a-zA-Z0-9_-]+)/i);
-  if (match) {
-    slug = match[1];
-  } else {
+  // Match "/pets/slug", "/pet/slug", "?pets/slug", "?pet/slug", "&pets/slug", "/pets/#/slug", "#/pets/slug", etc.
+  let match = cleaned.match(/(?:[/?&#]+)pets?\/#?\/([a-zA-Z0-9_-]+)/i);
+  if (!match) {
+    match = cleaned.match(/(?:[/?&#]+)pets?\/([a-zA-Z0-9_-]+)/i);
+  }
+  if (!match) {
     // Match query parameter "pet=slug" or "pets=slug"
     match = cleaned.match(/[?&]pets?=([a-zA-Z0-9_-]+)/i);
-    if (match) {
-      slug = match[1];
-    }
+  }
+  if (match) {
+    slug = match[1];
   }
 
   console.log(`[URL Resolver] Cleaned URL: ${cleaned}, extracted slug: ${slug}`);
