@@ -852,8 +852,28 @@ async function resolvePetJsonUrl(inputUrl) {
       const storePets = manifest.pets || [];
       const found = storePets.find(p => p.slug === slug || p.id === slug);
       if (found && found.petJsonUrl) {
-        console.log(`[URL Resolver] Found slug "${slug}" in manifest. pet.json: ${found.petJsonUrl}`);
-        return { petJsonUrl: found.petJsonUrl, spritesheetUrl: found.spritesheetUrl };
+        let petJsonUrl = found.petJsonUrl;
+        let spritesheetUrl = found.spritesheetUrl;
+
+        // Correct outdated domain
+        if (petJsonUrl.includes('petdex-assets.raillyhugo.workers.dev')) {
+          petJsonUrl = petJsonUrl.replaceAll('petdex-assets.raillyhugo.workers.dev', 'assets.petdex.dev');
+        }
+        if (spritesheetUrl && spritesheetUrl.includes('petdex-assets.raillyhugo.workers.dev')) {
+          spritesheetUrl = spritesheetUrl.replaceAll('petdex-assets.raillyhugo.workers.dev', 'assets.petdex.dev');
+        }
+
+        try {
+          const testRes = await fetch(petJsonUrl);
+          if (testRes.ok) {
+            console.log(`[URL Resolver] Found slug "${slug}" in manifest (validated): ${petJsonUrl}`);
+            return { petJsonUrl, spritesheetUrl };
+          } else {
+            console.log(`[URL Resolver] Manifest link 404 for "${slug}", falling back to HTML scan...`);
+          }
+        } catch (err) {
+          console.log(`[URL Resolver] Manifest link probe failed, falling back to HTML scan...`);
+        }
       }
     } catch (e) {
       console.error('[URL Resolver] Failed to query manifest:', e);
@@ -865,7 +885,10 @@ async function resolvePetJsonUrl(inputUrl) {
     console.log(`[URL Resolver] Fetching page HTML to scan for pet.json: ${cleaned}`);
     const pageRes = await fetch(cleaned);
     if (pageRes.ok) {
-      const html = await pageRes.text();
+      let html = await pageRes.text();
+      // Unescape escaped slashes like \/ to / so normal regexes match Next.js RSC/JSON payloads
+      html = html.replaceAll('\\/', '/');
+
       // Search for any pet.json or petjson.json URL
       let jsonMatch = html.match(/https?:\/\/[^\s"'`<>]+?\/(?:pet\.json|petjson\.json|metadata\.json)/i);
       if (!jsonMatch && slug) {
@@ -877,6 +900,24 @@ async function resolvePetJsonUrl(inputUrl) {
         const relMatch = html.match(/["']([^"'\s<>]+?\.(?:json))["']/i);
         if (relMatch) {
           jsonMatch = [new URL(relMatch[1], cleaned).href];
+        }
+      }
+      if (!jsonMatch) {
+        // Inferred path: look for zip or spritesheet link in HTML to infer the folder
+        const zipOrSpriteMatch = html.match(/https?:\/\/[^\s"'`<>]+?\/(?:zip\.zip|sprite\.webp|spritesheet\.webp)/i);
+        if (zipOrSpriteMatch && zipOrSpriteMatch[0]) {
+          const baseUrl = zipOrSpriteMatch[0].substring(0, zipOrSpriteMatch[0].lastIndexOf('/'));
+          const testUrls = [`${baseUrl}/petjson.json`, `${baseUrl}/pet.json`];
+          for (const testUrl of testUrls) {
+            try {
+              const testRes = await fetch(testUrl);
+              if (testRes.ok) {
+                console.log(`[URL Resolver] Inferred pet json from zip/sprite: ${testUrl}`);
+                jsonMatch = [testUrl];
+                break;
+              }
+            } catch {}
+          }
         }
       }
       if (jsonMatch && jsonMatch[0]) {
@@ -945,6 +986,11 @@ app.post('/api/pets/import-url', async (req, res) => {
     if (!spritesheetUrl) {
       const spritesheetPath = petJson.spritesheetPath || 'spritesheet.webp';
       spritesheetUrl = new URL(spritesheetPath, resolvedJsonUrl).href;
+    }
+
+    // Correct outdated domain in spritesheetUrl
+    if (spritesheetUrl && spritesheetUrl.includes('petdex-assets.raillyhugo.workers.dev')) {
+      spritesheetUrl = spritesheetUrl.replaceAll('petdex-assets.raillyhugo.workers.dev', 'assets.petdex.dev');
     }
 
     console.log(`Parsed pet slug: ${slug}, Spritesheet URL: ${spritesheetUrl}`);
