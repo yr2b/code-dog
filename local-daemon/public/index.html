@@ -53,10 +53,6 @@
           <span id="hardware-battery" class="hardware-battery" style="display: none;"></span>
         </div>
         <div class="status-item">
-          <span class="status-label">日志上限:</span>
-          <input type="number" id="retention-limit-input" style="width: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: #fff; border-radius: 4px; padding: 0.2rem; text-align: center;" value="1000" min="10" onchange="saveRetentionLimit(this.value)">
-        </div>
-        <div class="status-item">
           <button onclick="openShutdownModal()" class="btn-sm btn-shutdown">安全退出</button>
         </div>
       </div>
@@ -91,6 +87,10 @@
         <section class="panel history-panel">
           <div class="panel-header">
             <h2>执行审计日志</h2>
+            <div class="status-item" style="font-size: 0.8rem; display: flex; align-items: center; gap: 0.4rem;">
+              <span class="status-label" style="color: var(--text-muted);">日志上限:</span>
+              <input type="number" id="retention-limit-input" style="width: 60px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: #fff; border-radius: 4px; padding: 0.2rem; text-align: center; font-size: 0.8rem;" value="1000" min="10" onchange="saveRetentionLimit(this.value)">
+            </div>
           </div>
           <div class="history-list" id="history-list">
             <div class="empty-state">
