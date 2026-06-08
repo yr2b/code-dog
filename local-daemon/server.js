@@ -23,6 +23,23 @@ const PORT = 4000;
 const ASSET_PORT = 4001;
 const MQTT_BROKER = 'mqtt://broker-cn.emqx.io'; // China-accessible broker
 
+// Get current time formatted in Asia/Shanghai timezone (enforces both Date and Time in China timezone)
+function getChinaTime() {
+  const options = {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  };
+  const formatter = new Intl.DateTimeFormat('zh-CN', options);
+  // Returns: "2026/06/08 17:24:40" -> replace "/" with "-" -> "2026-06-08 17:24:40"
+  return formatter.format(new Date()).replace(/\//g, '-');
+}
+
 let publicTunnelUrl = '';
 
 // Minimal static server for pet assets only (exposed via tunnel)
@@ -563,7 +580,7 @@ function handleApprovalAction(id, action, source) {
     mode: req.mode,
     status: approved ? 'Approved' : 'Rejected',
     source: source,
-    timestamp: new Date().toLocaleTimeString()
+    timestamp: getChinaTime()
   });
 
   // Notify device and dash
@@ -619,7 +636,7 @@ app.post('/api/approve', async (req, res) => {
         mode,
         status: 'Auto-Approved',
         source: 'system',
-        timestamp: new Date().toLocaleTimeString()
+        timestamp: getChinaTime()
       });
 
       // Trigger companion status updates on ESP32 screen
@@ -667,7 +684,7 @@ app.post('/api/approve', async (req, res) => {
     agent,
     mode: 'strict',
     res, // Store the HTTP response object to hold it open
-    timestamp: new Date().toLocaleTimeString()
+    timestamp: getChinaTime()
   };
 
   pendingRequests.push(requestObj);
@@ -707,7 +724,7 @@ app.post('/api/notify', (req, res) => {
       title: title || 'Notification',
       message: message || '',
       status: status || 'info',
-      timestamp: new Date().toLocaleTimeString()
+      timestamp: getChinaTime()
     };
     const cid = config.clientId || 'client_zyx_s3';
     mqttClient.publish(`ai/notify/${cid}`, JSON.stringify(payload));
@@ -1321,7 +1338,7 @@ app.post('/api/hook/event', (req, res) => {
     mode,
     status: 'Auto-Approved',
     source: 'system',
-    timestamp: new Date().toLocaleTimeString()
+    timestamp: getChinaTime()
   });
 
   // Async MQTT publish (non-blocking)

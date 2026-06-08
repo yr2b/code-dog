@@ -8,6 +8,7 @@ services:
     working_dir: ${PWD}/local-daemon
     environment:
       - HOME=${HOME}
+      - TZ=Asia/Shanghai
     volumes:
       # 映射项目目录，确保路径和宿主机保持完全一致以契合 hook 里的绝对路径
       - .:${PWD}

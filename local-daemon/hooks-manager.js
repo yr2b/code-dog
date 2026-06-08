@@ -281,9 +281,89 @@ fi
             fs.writeFileSync(tomlPath, tomlContent, 'utf8');
             console.log('[Hooks Manager] Auto-healed Codex config.toml: enabled=true');
           }
+          
+          // Ensure features.hooks = true is configured, and deprecating codex_hooks is removed
+          tomlContent = fs.readFileSync(tomlPath, 'utf8');
+          let lines = tomlContent.split(/\r?\n/);
+          const sectionHeaderRe = /^\s*\[([^[\]]+)\]\s*(?:#.*)?$/;
+          const codexHooksKeyRe = /^\s*codex_hooks\s*=\s*(.+?)\s*(?:#.*)?$/;
+          const hooksKeyRe = /^\s*hooks\s*=\s*(.+?)\s*(?:#.*)?$/;
+          let currentSection = null;
+          let featuresHeaderLine = null;
+          let hooksEnabled = false;
+          let hooksReplaceLine = null;
+          let codexHooksLineIndex = null;
+
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const sectionMatch = line.match(sectionHeaderRe);
+            if (sectionMatch) {
+              currentSection = sectionMatch[1].trim();
+              if (currentSection === 'features' && featuresHeaderLine === null) {
+                featuresHeaderLine = i;
+              }
+              continue;
+            }
+            if (currentSection !== 'features') continue;
+
+            if (codexHooksKeyRe.test(line)) {
+              codexHooksLineIndex = i;
+            }
+
+            const hooksMatch = line.match(hooksKeyRe);
+            if (hooksMatch) {
+              const val = hooksMatch[1].trim();
+              if (val === 'true') {
+                hooksEnabled = true;
+              } else {
+                hooksReplaceLine = i;
+              }
+            }
+          }
+
+          let modified = false;
+
+          // Remove deprecated codex_hooks if found
+          if (codexHooksLineIndex !== null) {
+            lines.splice(codexHooksLineIndex, 1);
+            if (featuresHeaderLine !== null && codexHooksLineIndex < featuresHeaderLine) {
+              featuresHeaderLine--;
+            }
+            if (hooksReplaceLine !== null && codexHooksLineIndex < hooksReplaceLine) {
+              hooksReplaceLine--;
+            }
+            modified = true;
+          }
+
+          // Process hooks
+          if (!hooksEnabled) {
+            if (hooksReplaceLine !== null) {
+              const original = lines[hooksReplaceLine];
+              const valueRe = /^(\s*hooks\s*=\s*)([^#\n]+?)(\s*(?:#.*)?)$/;
+              const m = original.match(valueRe);
+              lines[hooksReplaceLine] = m ? `${m[1]}true${m[3]}` : 'hooks = true';
+            } else if (featuresHeaderLine !== null) {
+              lines.splice(featuresHeaderLine + 1, 0, 'hooks = true');
+            }
+            modified = true;
+          }
+
+          if (featuresHeaderLine === null) {
+            lines.push('', '[features]', 'hooks = true');
+            modified = true;
+          }
+
+          if (modified) {
+            fs.writeFileSync(tomlPath, lines.join('\n'), 'utf8');
+            console.log('[Hooks Manager] Auto-configured config.toml features.hooks = true (removed deprecated codex_hooks)');
+          }
+        } else {
+          ensureDir(path.dirname(tomlPath));
+          fs.writeFileSync(tomlPath, '[features]\nhooks = true\n', 'utf8');
+          console.log('[Hooks Manager] Created config.toml with features.hooks = true');
         }
       } catch (err) {
-        console.error('[Hooks Manager] Failed to auto-heal Codex config.toml:', err);
+        console.error('[Hooks Manager] Failed to auto-heal or configure Codex config.toml:', err);
       }
     },
     uninstall: (configPath) => {

@@ -1264,10 +1264,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
     String displayName = doc["displayName"] | "";
     
     if (slug.length() > 0 && url.length() > 0) {
-      if (slug == activePetSlug && petLoaded) {
-        Serial.println("Pet is already loaded. Skipping download.");
+      static String lastDownloadUrl = "";
+      if (slug == activePetSlug && (petLoaded || url == lastDownloadUrl)) {
+        Serial.println("Pet is already loaded or downloading from same URL. Skipping download.");
         return;
       }
+      lastDownloadUrl = url;
       
       activePetSlug = slug;
       activePetName = displayName;

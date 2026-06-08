@@ -26,3 +26,7 @@ petdex-temp/
 .claude/
 .venv/
 demo/
+
+# SSH Keys
+github
+github.pub
