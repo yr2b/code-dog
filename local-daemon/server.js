@@ -251,22 +251,43 @@ function connectMQTT() {
     const topicStr = topic.toString();
     const currentId = config.clientId || 'client_zyx_s3';
     
+    // Map to keep track of last sync trigger time per client to prevent sync storms
+    if (!global.lastSyncTriggerTime) {
+      global.lastSyncTriggerTime = {};
+    }
+
     if (topicStr === `ai/heartbeat/${currentId}`) {
       lastDeviceHeartbeat = Date.now();
       
       try {
         const payload = JSON.parse(message.toString());
         
-        // Cache battery and charging info in config
-        if (typeof payload.battery === 'number') {
+        // Cache battery and charging info in config with change detection
+        let configChanged = false;
+        if (typeof payload.battery === 'number' && payload.battery !== config.deviceBattery) {
           config.deviceBattery = payload.battery;
-          config.deviceCharging = !!payload.charging;
+          configChanged = true;
         }
 
-        // Self-healing check: trigger sync if device reports pet not loaded or slug mismatch
+        const chargingState = !!payload.charging;
+        if (payload.charging !== undefined && chargingState !== config.deviceCharging) {
+          config.deviceCharging = chargingState;
+          configChanged = true;
+        }
+
+        if (configChanged) {
+          saveConfig();
+        }
+
+        // Self-healing check with 30s cooldown: trigger sync if device reports pet not loaded or slug mismatch
         const deviceNeedsPet = !payload.pet_loaded || payload.active_slug !== config.activePet;
-        if (deviceNeedsPet) {
-          console.log(`[Sync System] Device reports pet not loaded or slug mismatch (device: "${payload.active_slug || ''}", config: "${config.activePet}"). Triggering automatic sync...`);
+        const now = Date.now();
+        const lastTrigger = global.lastSyncTriggerTime[currentId] || 0;
+        const isCooldownOver = (now - lastTrigger) > 30000; // 30s cooldown
+
+        if (deviceNeedsPet && isCooldownOver) {
+          global.lastSyncTriggerTime[currentId] = now;
+          console.log(`[Sync System] Device reports pet not loaded or slug mismatch (device: "${payload.active_slug || ''}", config: "${config.activePet}"). Cooldown ok, triggering automatic sync...`);
           syncActivePetToDevice(config.activePet).catch(err => {
             console.error('[Sync System] Auto sync active pet to device failed:', err);
           });
