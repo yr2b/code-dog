@@ -269,6 +269,22 @@ fi
       });
       
       writeJson(configPath, config);
+
+      // Auto-heal/unblock disabled state in config.toml
+      try {
+        const tomlPath = path.join(HOME, '.codex', 'config.toml');
+        if (exists(tomlPath)) {
+          let tomlContent = fs.readFileSync(tomlPath, 'utf8');
+          const regex = /(\[hooks\.state\.".*hooks\.json:pre_tool_use:0:0"\]\r?\n)enabled\s*=\s*false/g;
+          if (regex.test(tomlContent)) {
+            tomlContent = tomlContent.replace(regex, '$1enabled = true');
+            fs.writeFileSync(tomlPath, tomlContent, 'utf8');
+            console.log('[Hooks Manager] Auto-healed Codex config.toml: enabled=true');
+          }
+        }
+      } catch (err) {
+        console.error('[Hooks Manager] Failed to auto-heal Codex config.toml:', err);
+      }
     },
     uninstall: (configPath) => {
       if (!exists(configPath)) return;
