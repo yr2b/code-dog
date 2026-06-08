@@ -1611,6 +1611,23 @@ void checkButtons() {
   }
 }
 
+void sendHeartbeat() {
+  if (!mqttClient.connected()) return;
+  
+  JsonDocument doc;
+  doc["pet_loaded"] = petLoaded;
+  doc["active_slug"] = activePetSlug;
+  doc["battery"] = batteryPct;
+  doc["charging"] = isCharging;
+  
+  String payload;
+  serializeJson(doc, payload);
+  
+  String topic = "ai/heartbeat/" + String(client_id);
+  mqttClient.publish(topic.c_str(), payload.c_str());
+  Serial.printf("Sent heartbeat payload: %s\n", payload.c_str());
+}
+
 // Connect to WiFi
 void connectWiFi() {
   gfx->fillScreen(COLOR_DARK_BG);
@@ -1682,6 +1699,8 @@ void reconnectMQTT() {
         mqttClient.subscribe(notifyTopic.c_str());
         mqttClient.subscribe(petChangedTopic.c_str());
         mqttClient.subscribe(petStateTopic.c_str());
+        
+        sendHeartbeat();
         
         updateUI();
       } else {
@@ -1793,10 +1812,7 @@ void loop() {
   static unsigned long lastHeartbeatTime = 0;
   if (millis() - lastHeartbeatTime > 5000) {
     lastHeartbeatTime = millis();
-    if (mqttClient.connected()) {
-      String topic = "ai/heartbeat/" + String(client_id);
-      mqttClient.publish(topic.c_str(), "ping");
-    }
+    sendHeartbeat();
   }
   
   // Check touch coordinates
