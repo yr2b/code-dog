@@ -993,65 +993,72 @@ function getLocalIPAddress() {
   return 'localhost';
 }
 
+// Helper to package pet and broadcast download URL to ESP32 S3 over MQTT
+async function syncActivePetToDevice(slug) {
+  if (!slug) throw new Error('Missing pet slug');
+
+  // Generate binary package if not present
+  await petManager.processAndPackagePet(slug);
+  
+  // Upload to Qiniu Cloud if configured, fallback to tmpfile.link, fallback to local tunnel
+  let downloadUrl = '';
+  let usedCdn = false;
+
+  if (isQiniuConfigured()) {
+    try {
+      console.log(`Uploading pet binary to Qiniu Cloud CDN...`);
+      downloadUrl = await petManager.uploadToQiniu(slug);
+      usedCdn = true;
+      console.log(`Download URL (Qiniu CDN): ${downloadUrl}`);
+    } catch (qiniuErr) {
+      console.error(`Qiniu upload failed: ${qiniuErr.message}, falling back to tmpfile.link...`);
+    }
+  }
+
+  if (!usedCdn) {
+    try {
+      console.log(`Uploading pet binary to tmpfile.link...`);
+      downloadUrl = await petManager.uploadToTmpFiles(slug);
+      console.log(`Download URL (tmpfile.link): ${downloadUrl}`);
+    } catch (uploadErr) {
+      console.error(`tmpfile.link upload failed: ${uploadErr.message}`);
+      if (publicTunnelUrl) {
+        downloadUrl = `${publicTunnelUrl}/pets/${slug}/pet_assets.bin`;
+        console.log(`Falling back to tunnel URL: ${downloadUrl}`);
+      } else {
+        throw new Error('No download URL available: tmpfile.link failed and tunnel not ready');
+      }
+    }
+  }
+  
+  // Read display name
+  const petJsonPath = path.join(petManager.PETS_DIR, slug, 'pet.json');
+  const petJson = JSON.parse(fs.readFileSync(petJsonPath, 'utf8'));
+
+  // Broadcast to ESP32-S3 over MQTT
+  if (mqttClient && mqttClient.connected) {
+    const cid = config.clientId || 'client_zyx_s3';
+    mqttClient.publish(`ai/pet_changed/${cid}`, JSON.stringify({
+      slug,
+      url: downloadUrl,
+      displayName: petJson.displayName
+    }), { retain: true });
+  }
+
+  return { slug, downloadUrl, displayName: petJson.displayName };
+}
+
 // Select active pet and publish binary file link via MQTT
 app.post('/api/pets/active', async (req, res) => {
   const { slug } = req.body;
   if (!slug) return res.status(400).json({ error: 'Missing slug' });
 
   try {
-    // Generate binary package if not present
-    await petManager.processAndPackagePet(slug);
-    
-    // Upload to Qiniu Cloud if configured, fallback to tmpfile.link, fallback to local tunnel
-    let downloadUrl = '';
-    let usedCdn = false;
-
-    if (isQiniuConfigured()) {
-      try {
-        console.log(`Uploading pet binary to Qiniu Cloud CDN...`);
-        downloadUrl = await petManager.uploadToQiniu(slug);
-        usedCdn = true;
-        console.log(`Download URL (Qiniu CDN): ${downloadUrl}`);
-      } catch (qiniuErr) {
-        console.error(`Qiniu upload failed: ${qiniuErr.message}, falling back to tmpfile.link...`);
-      }
-    }
-
-    if (!usedCdn) {
-      try {
-        console.log(`Uploading pet binary to tmpfile.link...`);
-        downloadUrl = await petManager.uploadToTmpFiles(slug);
-        console.log(`Download URL (tmpfile.link): ${downloadUrl}`);
-      } catch (uploadErr) {
-        console.error(`tmpfile.link upload failed: ${uploadErr.message}`);
-        if (publicTunnelUrl) {
-          downloadUrl = `${publicTunnelUrl}/pets/${slug}/pet_assets.bin`;
-          console.log(`Falling back to tunnel URL: ${downloadUrl}`);
-        } else {
-          throw new Error('No download URL available: tmpfile.link failed and tunnel not ready');
-        }
-      }
-    }
-    
-    // Read display name
-    const petJsonPath = path.join(petManager.PETS_DIR, slug, 'pet.json');
-    const petJson = JSON.parse(fs.readFileSync(petJsonPath, 'utf8'));
-
-    config.activePet = slug;
+    const result = await syncActivePetToDevice(slug);
+    config.activePet = result.slug;
     saveConfig();
     broadcastStatus();
-
-    // Broadcast to ESP32-S3 over MQTT
-    if (mqttClient && mqttClient.connected) {
-      const cid = config.clientId || 'client_zyx_s3';
-      mqttClient.publish(`ai/pet_changed/${cid}`, JSON.stringify({
-        slug,
-        url: downloadUrl,
-        displayName: petJson.displayName
-      }), { retain: true });
-    }
-
-    res.json({ success: true, slug, downloadUrl, displayName: petJson.displayName });
+    res.json({ success: true, ...result });
   } catch (err) {
     console.error(`Failed to activate pet ${slug}:`, err);
     res.status(500).json({ error: err.message });
