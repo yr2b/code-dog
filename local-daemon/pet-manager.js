@@ -47,11 +47,39 @@ async function importPetByDetails(slug, petJsonUrl, spritesheetUrl) {
   const petDir = path.join(PETS_DIR, slug);
   ensureDir(petDir);
 
+  // Correct outdated domain in URLs
+  if (petJsonUrl && petJsonUrl.includes('petdex-assets.raillyhugo.workers.dev')) {
+    petJsonUrl = petJsonUrl.replaceAll('petdex-assets.raillyhugo.workers.dev', 'assets.petdex.dev');
+  }
+  if (spritesheetUrl && spritesheetUrl.includes('petdex-assets.raillyhugo.workers.dev')) {
+    spritesheetUrl = spritesheetUrl.replaceAll('petdex-assets.raillyhugo.workers.dev', 'assets.petdex.dev');
+  }
+
   console.log(`Importing pet "${slug}"...`);
+  console.log(`Using petJsonUrl: ${petJsonUrl}`);
+  console.log(`Using spritesheetUrl: ${spritesheetUrl}`);
   
   // Download pet.json and unwrap if nested
   const petJsonPath = path.join(petDir, 'pet.json');
-  const res = await fetch(petJsonUrl);
+  let res = await fetch(petJsonUrl);
+  
+  if (!res.ok) {
+    let fallbackUrl = null;
+    if (petJsonUrl.endsWith('petjson.json')) {
+      fallbackUrl = petJsonUrl.replace('petjson.json', 'pet.json');
+    } else if (petJsonUrl.endsWith('pet.json')) {
+      fallbackUrl = petJsonUrl.replace('pet.json', 'petjson.json');
+    }
+    
+    if (fallbackUrl) {
+      console.log(`[pet-manager] ${petJsonUrl} failed with status ${res.status}. Retrying fallback URL: ${fallbackUrl}`);
+      const fallbackRes = await fetch(fallbackUrl);
+      if (fallbackRes.ok) {
+        res = fallbackRes;
+      }
+    }
+  }
+
   if (!res.ok) throw new Error(`Failed to download ${petJsonUrl}: ${res.status}`);
   let json = await res.json();
   if (json.pet) {
