@@ -1201,3 +1201,41 @@ body {
   background: rgba(16, 185, 129, 0.05);
   color: #fff;
 }
+
+/* Hardware Battery Label Styling */
+.hardware-battery {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-main);
+  transition: all 0.3s ease;
+}
+
+.hardware-battery.charging {
+  color: var(--accent-approve);
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.25);
+  animation: chargingGlow 2s infinite alternate;
+}
+
+.hardware-battery.low {
+  color: var(--accent-reject);
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+@keyframes chargingGlow {
+  from {
+    box-shadow: 0 0 4px rgba(16, 185, 129, 0.05);
+  }
+  to {
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.25);
+  }
+}
