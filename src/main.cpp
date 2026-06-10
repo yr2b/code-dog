@@ -1560,6 +1560,13 @@ void checkButtons() {
           }
         }
         updateUI();
+      } else if (currentState == STATE_STATUS) {
+        // 状态页短按 BOOT 键为“减小亮度”
+        screenBrightness -= 10;
+        if (screenBrightness < 10) screenBrightness = 10;
+        setBrightness(screenBrightness);
+        saveBrightness(screenBrightness);
+        updateUI();
       }
     }
     bootWasPressed = false;
@@ -1587,13 +1594,18 @@ void checkButtons() {
           }
         }
         updateUI();
+      } else if (currentState == STATE_STATUS) {
+        // 状态页短按 PLUS 键为“增加亮度”
+        screenBrightness += 10;
+        if (screenBrightness > 100) screenBrightness = 100;
+        setBrightness(screenBrightness);
+        saveBrightness(screenBrightness);
+        updateUI();
       } else {
-        // Toggle view between Companion and Diagnostics
+        // Toggle view between Companion and Diagnostics (only trigger from other states)
         Serial.println("PLUS Button: Toggling View Mode");
         if (currentState == STATE_COMPANION) {
           currentState = STATE_STATUS;
-        } else if (currentState == STATE_STATUS) {
-          currentState = STATE_COMPANION;
         }
         updateUI();
       }
