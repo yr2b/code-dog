@@ -759,6 +759,30 @@ void drawStatusScreen() {
   gfx->println("All configurations synced.");
   gfx->setCursor(20, 165);
   gfx->println("Tap screen to return.");
+
+  // === 绘制亮度控制面板 ===
+  gfx->setCursor(20, 190);
+  gfx->print("亮度: ");
+  gfx->setTextColor(COLOR_CYAN);
+  gfx->printf("%d%%", screenBrightness);
+
+  // 绘制进度条背景
+  int barX = 65;
+  int barY = 184;
+  int barW = 110;
+  int barH = 8;
+  gfx->fillRoundRect(barX, barY, barW, barH, 4, COLOR_DARK_BG);
+  
+  // 绘制进度条高亮填充
+  int activeW = map(screenBrightness, 10, 100, 0, barW);
+  if (activeW > 0) {
+    gfx->fillRoundRect(barX, barY, activeW, barH, 4, COLOR_CYAN);
+  }
+
+  // 右侧实体按键提示
+  gfx->setTextColor(COLOR_TEXT_MUTED);
+  gfx->setCursor(185, 190);
+  gfx->print("[-/+]");
 }
 
 void drawApprovalScreen() {
