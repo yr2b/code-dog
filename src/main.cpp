@@ -9,6 +9,7 @@
 #include <vector>
 #include <HTTPClient.h>
 #include <PNGdec.h>
+#include <Preferences.h>
 
 // Board Display Definitions (Waveshare ESP32-S3 Touch LCD 1.54)
 #define GFX_BL 46
@@ -38,6 +39,10 @@ bool hasTouch = false;
 int batteryPct = 100;
 bool isCharging = false;
 unsigned long lastBatteryUpdateTime = 0;
+
+// Screen Brightness variables
+int screenBrightness = 80;
+Preferences prefs;
 
 // Button state variables
 unsigned long bootPressStart = 0;
@@ -558,6 +563,34 @@ void updateBatteryStatus() {
 
   Serial.printf("Battery: pin_mv=%d, voltage=%.2fV (smooth=%.2fV), pct=%d%%, charging=%s\n",
                 pin_mv, voltage, smoothedVoltage, batteryPct, isCharging ? "YES" : "NO");
+}
+
+void setBrightness(int percent) {
+  if (percent < 10) percent = 10;
+  if (percent > 100) percent = 100;
+  
+  // 映射 10%-100% 亮度至 15-255 的 PWM 占空比
+  int duty = map(percent, 10, 100, 15, 255);
+  ledcWrite(0, duty);
+  Serial.printf("Backlight set to %d%% (duty %d)\n", percent, duty);
+}
+
+void initBrightness() {
+  // LEDC 通道 0, 频率 5000Hz, 分辨率 8 位
+  ledcSetup(0, 5000, 8);
+  ledcAttachPin(GFX_BL, 0);
+  
+  prefs.begin("system", false);
+  screenBrightness = prefs.getInt("brightness", 80);
+  prefs.end();
+  
+  setBrightness(screenBrightness);
+}
+
+void saveBrightness(int percent) {
+  prefs.begin("system", false);
+  prefs.putInt("brightness", percent);
+  prefs.end();
 }
 
 void drawGlobalBattery(int x, int y) {
