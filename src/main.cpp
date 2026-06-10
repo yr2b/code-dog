@@ -1613,6 +1613,7 @@ void checkButtons() {
       if (duration >= 2000) {
         Serial.println("PWR Button: Shutdown triggered");
         // Turn off screen backlight immediately
+        ledcWrite(0, 0);
         pinMode(GFX_BL, OUTPUT);
         digitalWrite(GFX_BL, LOW);
         gfx->displayOff();
@@ -1773,8 +1774,7 @@ void setup() {
   if (!gfx->begin()) {
     Serial.println("gfx->begin() failed!");
   }
-  pinMode(GFX_BL, OUTPUT);
-  digitalWrite(GFX_BL, HIGH);
+  initBrightness();
   gfx->fillScreen(COLOR_DARK_BG);
 
 #ifdef U8G2_FONT_SUPPORT
